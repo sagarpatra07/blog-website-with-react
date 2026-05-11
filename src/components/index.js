@@ -7,6 +7,8 @@ import Button from "./Button.jsx";
 import Input from "./Input.jsx";
 import SelectBtn from "./SelectBtn.jsx";
 import PostCard from "./PostCard.jsx";
+import Login from "./Login.jsx"
+import SignUp from "./SignUp.jsx"
 
 export {
     Header, 
@@ -17,5 +19,7 @@ export {
     Button,
     Input,
     SelectBtn,
-    PostCard
+    PostCard,
+    Login,
+    SignUp
 };

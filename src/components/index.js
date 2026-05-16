@@ -9,6 +9,7 @@ import SelectBtn from "./SelectBtn.jsx";
 import PostCard from "./PostCard.jsx";
 import Login from "./Login.jsx"
 import SignUp from "./SignUp.jsx"
+import RTE from "./RTE.jsx";
 
 export {
     Header, 
@@ -21,5 +22,6 @@ export {
     SelectBtn,
     PostCard,
     Login,
-    SignUp
+    SignUp,
+    RTE
 };

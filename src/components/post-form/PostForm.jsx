@@ -28,13 +28,14 @@ function PostForm({ post }) {
         setError("");
 
         try {
-            let fileId = post?.featuredImage || "";
+            let fileId = post?.featuredImage || post?.featuredimage || "";
 
             if (data.image && data.image[0]) {
                 const uploadedFile = await storageService.uploadFile(data.image[0]);
                 if (uploadedFile) {
-                    if (post?.featuredImage) {
-                        await storageService.deleteFile(post.featuredImage);
+                    const existingImage = post?.featuredImage || post?.featuredimage;
+                    if (existingImage && !existingImage.startsWith("http")) {
+                        await storageService.deleteFile(existingImage);
                     }
                     fileId = uploadedFile.$id;
                 }
@@ -53,7 +54,7 @@ function PostForm({ post }) {
                     saveLocalDemoPost({
                         ...post,
                         ...data,
-                        featuredImage: fileId || post.featuredImage
+                        featuredImage: fileId || post.featuredImage || post.featuredimage || ""
                     });
                     navigate(`/post/${post.$id || post.slug}`);
                 }
@@ -80,7 +81,7 @@ function PostForm({ post }) {
                         slug: slugId,
                         title: data.title,
                         content: data.content,
-                        featuredImage: fileId || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
+                        featuredImage: fileId || "",
                         status: data.status,
                         userId: userData?.$id || "demo-user",
                         authorName: userData?.name || "Anonymous",
@@ -153,16 +154,16 @@ function PostForm({ post }) {
             <div className="w-full lg:w-1/3 px-3 mt-6 lg:mt-0 space-y-6">
                 <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-6">
                     <Input
-                        label="Featured Cover Image :"
+                        label="Featured Cover Image (Optional) :"
                         type="file"
                         accept="image/png, image/jpg, image/jpeg, image/gif, image/webp"
-                        {...register("image", { required: !post })}
+                        {...register("image", { required: false })}
                     />
                     
-                    {post && post.featuredImage && (
+                    {post && (post.featuredImage || post.featuredimage) && (
                         <div className="w-full overflow-hidden rounded-xl border border-slate-800">
                             <img
-                                src={storageService.getFilePreview(post.featuredImage)}
+                                src={storageService.getFilePreview(post.featuredImage || post.featuredimage)}
                                 alt={post.title}
                                 className="w-full h-40 object-cover"
                             />

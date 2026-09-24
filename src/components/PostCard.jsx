@@ -5,7 +5,7 @@ import storageService from "../appwrite/storage.service.js";
 function PostCard({ post, $id, title, featuredImage }) {
     const id = post?.$id || $id || post?.slug;
     const postTitle = post?.title || title || "Untitled Article";
-    const image = post?.featuredImage || featuredImage;
+    const image = post?.featuredImage || post?.featuredimage || post?.featured_image || featuredImage;
     const author = post?.authorName || "Editorial Team";
     const readTime = post?.readTime || "4 min read";
     const imageUrl = storageService.getFilePreview(image);

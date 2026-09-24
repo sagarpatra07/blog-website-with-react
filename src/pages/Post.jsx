@@ -45,8 +45,9 @@ function Post() {
             dbService.deletePost(post.$id || post.slug)
                 .then((status) => {
                     if (status) {
-                        if (post.featuredImage) {
-                            storageService.deleteFile(post.featuredImage);
+                        const imageId = post.featuredImage || post.featuredimage || post.featured_image;
+                        if (imageId) {
+                            storageService.deleteFile(imageId);
                         }
                     }
                     // Clean up local storage if fallback
@@ -77,7 +78,8 @@ function Post() {
         );
     }
 
-    const imageUrl = storageService.getFilePreview(post.featuredImage);
+    const imageId = post.featuredImage || post.featuredimage || post.featured_image;
+    const imageUrl = storageService.getFilePreview(imageId);
 
     return (
         <div className="py-12 min-h-[80vh]">

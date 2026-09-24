@@ -1,6 +1,8 @@
 import config from '../config/config';
 import { Client, Storage, ID } from "appwrite";
 
+const DUMMY_IMAGE = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
+
 export class StorageService {
     client = new Client();
     storage;
@@ -43,19 +45,23 @@ export class StorageService {
     }
 
     getFilePreview(fileId){
-        if (!fileId) return "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
-        if (typeof fileId === "string" && (fileId.startsWith("http://") || fileId.startsWith("https://"))) {
-            return fileId;
+        if (!fileId || typeof fileId !== "string" || fileId.trim() === "") {
+            return DUMMY_IMAGE;
+        }
+        const trimmed = fileId.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+            return trimmed;
         }
         try {
-            if (!config.appWriteBucketId) return "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
-            return this.storage.getFilePreview(
+            if (!config.appWriteBucketId) return DUMMY_IMAGE;
+            const previewUrl = this.storage.getFilePreview(
                 config.appWriteBucketId,
-                fileId
+                trimmed
             );
+            return previewUrl || DUMMY_IMAGE;
         } catch (error) {
             console.log("Appwrite Error :: filePreview :: error", error);
-            return "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
+            return DUMMY_IMAGE;
         }
     }
 }

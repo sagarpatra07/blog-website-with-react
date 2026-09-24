@@ -1,33 +1,35 @@
-import React, {forwardRef, useId} from "react";
+import React, { forwardRef, useId } from "react";
 
-function Input(
+const Input = forwardRef(function Input(
   { 
     label, 
     type = 'text', 
-    className = '', 
-    ref,        // pull in the ref  
-    ...props    // everything else  
-  }
+    className = '',
+    error,
+    ...props 
+  },
+  ref
 ) {
     const id = useId();
     return (
-        <>
-            <div className="w-full">
-                {/* this will only show if the label is given to the Input component */}
-                {label &&
-                    <label className="inline-block mb-1 pl-1" htmlFor={id}>
-                        {label}
-                    </label>
-                }
-                <input type={type} 
-                className={`px-3 py-2 rounded-lg bg-white text-black outline-none focus:bg-gray-50 duration-200 border border-gray-200 w-full 
-                ${className}`}
+        <div className="w-full">
+            {label && (
+                <label className="block mb-1.5 text-xs font-semibold tracking-wider text-slate-300 uppercase" htmlFor={id}>
+                    {label}
+                </label>
+            )}
+            <input 
+                type={type} 
+                className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-900/80 text-white placeholder-slate-500 border border-slate-700/80 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200 text-sm ${className}`}
                 ref={ref}
                 {...props}
-                id = {id} 
-                />
-            </div>
-        </>
-    )
-}
+                id={id} 
+            />
+            {error && (
+                <p className="mt-1 text-xs text-rose-400 font-medium">{error}</p>
+            )}
+        </div>
+    );
+});
+
 export default Input;

@@ -1,87 +1,100 @@
-import React , {use, useState} from "react";
-import {Link, useNavigate} from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { login as authLogin } from "../store/authSlice.js";
-import {Button, Input, Logo} from './index.js'
+import { Button, Input, Logo } from './index.js';
 import { useDispatch } from "react-redux";
-import authService from "../appwrite/auth.service";
+import authService from "../appwrite/auth.service.js";
 import { useForm } from "react-hook-form";
 
-function Login(){
+function Login() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const {register, handleSubmit} = useForm();
+    const { register, handleSubmit, formState: { errors } } = useForm();
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const login = async(data) => {
-        setError("")   // in the start of login method all errors will be cleared
+    const loginHandler = async (data) => {
+        setError("");
+        setLoading(true);
         try {
-            const session = await authService.login(data);
-            if(session){
-                const userData = await authService.getCurrentUser();
-                if(userData){
-                    dispatch(authLogin(userData));
-                }
-                navigate("/") // navigate to the root route
+            await authService.login(data);
+            const userData = await authService.getCurrentUser();
+            if (userData) {
+                dispatch(authLogin({ userData }));
+                navigate("/");
+            } else {
+                setError("Logged in, but could not retrieve account details.");
             }
-        } catch (error) {
-            setError(error.message);
+        } catch (err) {
+            setError(err.message || "Invalid credentials. Please try again.");
+        } finally {
+            setLoading(false);
         }
+    };
 
-    }
-    return(
-        <div className='flex items-center justify-center w-full'>
-        <div className={`mx-auto w-full max-w-lg bg-gray-100 rounded-xl p-10 border border-black/10`}>
-        <div className="mb-2 flex justify-center">
-                    <span className="inline-block w-full max-w-25">
-                        <Logo width="100%" />
-                    </span>
-        </div>
-        <h2 className="text-center text-2xl font-bold leading-tight">Sign in to your account</h2>
-        <p className="mt-2 text-center text-base text-black/60">
-                    Don&apos;t have any account?&nbsp;
-                    <Link
-                        to="/signup"
-                        className="font-medium text-primary transition-all duration-200 hover:underline"
+    return (
+        <div className="flex items-center justify-center min-h-[70vh] py-12 px-4">
+            <div className="w-full max-w-md bg-slate-900/80 border border-slate-800/80 rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl shadow-indigo-950/20 space-y-8">
+                <div className="flex flex-col items-center text-center space-y-3">
+                    <Logo />
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
+                    <p className="text-xs text-slate-400">
+                        Don&apos;t have an account?&nbsp;
+                        <Link
+                            to="/signup"
+                            className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors underline"
+                        >
+                            Sign Up
+                        </Link>
+                    </p>
+                </div>
+
+                {error && (
+                    <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs font-medium text-center">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit(loginHandler)} className="space-y-5">
+                    <Input
+                        label="Email Address"
+                        placeholder="you@example.com"
+                        type="email"
+                        error={errors.email?.message}
+                        {...register("email", {
+                            required: "Email address is required",
+                            pattern: {
+                                value: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+                                message: "Please enter a valid email address"
+                            }
+                        })}
+                    />
+
+                    <Input
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        error={errors.password?.message}
+                        {...register("password", {
+                            required: "Password is required",
+                            minLength: {
+                                value: 6,
+                                message: "Password must be at least 6 characters"
+                            }
+                        })}
+                    />
+
+                    <Button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3 text-sm font-semibold"
                     >
-                        Sign Up
-                    </Link>
-        </p>
-        {error && <p className="text-red-600 mt-8 text-center">{error}</p>}
-        <form onSubmit={handleSubmit(login)} className='mt-8'>
-            <div className='space-y-5'>
-                <Input
-                label="Email: "
-                placeholder="Enter your email"
-                type="email"
-                {...register("email", {
-                    required: true,
-                    validate: {
-                        matchPatern: (value) => /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(value) ||
-                        "Email address must be a valid address",
-                    }
-                })}
-                />
-                <Input
-                label="Password: "
-                type="password"
-                placeholder="Enter your password"
-                {...register("password", {
-                    required: true,
-                    validate: {
-                        matchPatern: (value) => /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/.test(value) ||
-                        "Password is not valid"
-                    }
-                })}
-                />
-                <Button
-                type="submit"
-                className="w-full"
-                >Sign in</Button>
+                        {loading ? "Signing in..." : "Sign In"}
+                    </Button>
+                </form>
             </div>
-        </form>
         </div>
-    </div>
-    )
+    );
 }
 
 export default Login;

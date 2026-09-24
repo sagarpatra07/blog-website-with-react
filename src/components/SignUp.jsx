@@ -1,97 +1,113 @@
-import React, {useState} from "react";
-import authService from "../appwrite/auth.service";
+import React, { useState } from "react";
+import authService from "../appwrite/auth.service.js";
 import { Link, useNavigate } from "react-router-dom";
-import { login } from "../store/authSlice";
-import {Button, Input, Logo} from "./index.js"
+import { login as authLogin } from "../store/authSlice.js";
+import { Button, Input, Logo } from "./index.js";
 import { useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 
-function SignUp(){
+function SignUp() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [error, setError] = useState('');
-    const {register, handleSubmit} = useForm();
+    const [loading, setLoading] = useState(false);
+    const { register, handleSubmit, formState: { errors } } = useForm();
 
-    const signUp = async(data) => {
-        setError("")
+    const signUpHandler = async (data) => {
+        setError("");
+        setLoading(true);
         try {
-            const userData = await authService.createAccount(data);
-            if(userData){
-                const userData = await authService.getCurrentUser();
-                if(userData){
-                    dispatch(login(userData))
-                }
-                navigate("/")
+            await authService.createAccount({
+                email: data.email,
+                password: data.password,
+                name: data.fullname
+            });
+            const userData = await authService.getCurrentUser();
+            if (userData) {
+                dispatch(authLogin({ userData }));
+                navigate("/");
+            } else {
+                setError("Account created, but could not retrieve account details.");
             }
-        } catch (error) {
-            setError(error.message);
+        } catch (err) {
+            setError(err.message || "Failed to create account. Please try again.");
+        } finally {
+            setLoading(false);
         }
-    }
-    return(
-        <>
-            <div className="flex items-center justify-center">
-            <div className={`mx-auto w-full max-w-lg bg-gray-100 rounded-xl p-10 border border-black/10`}>
-            <div className="mb-2 flex justify-center">
-                    <span className="inline-block w-full max-w-25">
-                        <Logo width="100%" />
-                    </span>
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-[70vh] py-12 px-4">
+            <div className="w-full max-w-md bg-slate-900/80 border border-slate-800/80 rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl shadow-indigo-950/20 space-y-8">
+                <div className="flex flex-col items-center text-center space-y-3">
+                    <Logo />
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Create an account</h2>
+                    <p className="text-xs text-slate-400">
+                        Already have an account?&nbsp;
+                        <Link
+                            to="/login"
+                            className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors underline"
+                        >
+                            Sign In
+                        </Link>
+                    </p>
                 </div>
-                <h2 className="text-center text-2xl font-bold leading-tight">Sign up to create account</h2>
-                <p className="mt-2 text-center text-base text-black/60">
-                    Already have an account?&nbsp;
-                    <Link
-                        to="/login"
-                        className="font-medium text-primary transition-all duration-200 hover:underline"
-                    >
-                        Sign In
-                    </Link>
-                </p>
-                {error && <p className="text-red-600 mt-8 text-center">{error}</p>}
 
-                <form onSubmit={handleSubmit(signUp)}>
-                    <div className='space-y-5'>
-                        <Input
-                        label="Full Name: "
-                        placeholder="Enter your full name"
-                        {...register("fullname", {
-                            required: true,
-                        })}
-                        />
-                        <Input
-                        label="Email: "
-                        placeholder="Enter your email"
-                        type="email"
-                        {...register("email", {
-                            required: true,
-                            validate: {
-                                matchPatern: (value) => /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(value) ||
-                                "Email address must be a valid address",
-                            }
-                        })}
-                        />
-                        <Input
-                        label="Password: "
-                        type="password"
-                        placeholder="Enter your password"
-                        {...register("password", {
-                            required: true,
-                            validate: {
-                                matchPatern: (value) => /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/.test(value) ||
-                                "Password is not valid"
-                            }
-
-                        })}
-                        />
-                        <Button type="submit" className="w-full">
-                            Create Account
-                        </Button>
+                {error && (
+                    <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs font-medium text-center">
+                        {error}
                     </div>
+                )}
+
+                <form onSubmit={handleSubmit(signUpHandler)} className="space-y-5">
+                    <Input
+                        label="Full Name"
+                        placeholder="Alex Johnson"
+                        error={errors.fullname?.message}
+                        {...register("fullname", {
+                            required: "Full name is required",
+                        })}
+                    />
+
+                    <Input
+                        label="Email Address"
+                        placeholder="you@example.com"
+                        type="email"
+                        error={errors.email?.message}
+                        {...register("email", {
+                            required: "Email address is required",
+                            pattern: {
+                                value: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+                                message: "Please enter a valid email address"
+                            }
+                        })}
+                    />
+
+                    <Input
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        error={errors.password?.message}
+                        {...register("password", {
+                            required: "Password is required",
+                            minLength: {
+                                value: 8,
+                                message: "Password must be at least 8 characters"
+                            }
+                        })}
+                    />
+
+                    <Button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3 text-sm font-semibold"
+                    >
+                        {loading ? "Creating Account..." : "Create Account"}
+                    </Button>
                 </form>
             </div>
-
-            </div>
-        </>
-    )
+        </div>
+    );
 }
 
 export default SignUp;

@@ -1,137 +1,192 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import {Button, Input, SelectBtn, RTE} from "../index.js"
+import { Button, Input, SelectBtn, RTE } from "../index.js";
 import dbService from "../../appwrite/database.service.js";
 import storageService from "../../appwrite/storage.service.js";
+import { saveLocalDemoPost } from "../../utils/demoPosts.js";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-function PostForm({post}){
-    const {register, handleSubmit, watch, setValue, control, getValues} = useForm({
+function PostForm({ post }) {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    
+    const { register, handleSubmit, watch, setValue, control, getValues } = useForm({
         defaultValues: {
             title: post?.title || "",
-            slug: post?.slug || "",
+            slug: post?.$id || post?.slug || "",
             content: post?.content || "",
-            status: post?.status || "active"
-        }
-    })
+            status: post?.status || "active",
+        },
+    });
 
-    const navigate = useNavigate()
-    const userData = useSelector(state => state.user.userData)
+    const navigate = useNavigate();
+    const userData = useSelector((state) => state.auth.userData);
 
-    const submit = async(data) => {
-        if(post) {
-            const file = data.image[0] ? storageService.uploadFile(data.image[0]) : null
-            
-            if(file){
-                storageService.deleteFile(post.featuredImage)
-            }
+    const submit = async (data) => {
+        setLoading(true);
+        setError("");
 
-            const dbPost = await dbService.updatePost(
-                post.$id, 
-                {...data, 
-                    featuredImage: file ? file.$id : undefined,
+        try {
+            let fileId = post?.featuredImage || "";
+
+            if (data.image && data.image[0]) {
+                const uploadedFile = await storageService.uploadFile(data.image[0]);
+                if (uploadedFile) {
+                    if (post?.featuredImage) {
+                        await storageService.deleteFile(post.featuredImage);
+                    }
+                    fileId = uploadedFile.$id;
                 }
-            )
-            
-            if(dbPost){
-                navigate(`/post/${dbPost.$id}`)
             }
-            
-        } else {
-            const file = await storageService.uploadFile(data.image[0])
-            if(file){
-                const fileId = file.$id
-                data.featuredImage = fileId
 
-                const dbPost = await dbService.createPost({
+            if (post) {
+                const dbPost = await dbService.updatePost(post.$id || post.slug, {
                     ...data,
-                    userId: userData.$id,
-                })
-                if(dbPost) navigate(`/post/${dbPost.$id}`)
+                    featuredImage: fileId,
+                });
+                
+                if (dbPost) {
+                    navigate(`/post/${dbPost.$id}`);
+                } else {
+                    // Fallback to local storage update
+                    saveLocalDemoPost({
+                        ...post,
+                        ...data,
+                        featuredImage: fileId || post.featuredImage
+                    });
+                    navigate(`/post/${post.$id || post.slug}`);
+                }
+            } else {
+                const slugId = data.slug || data.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, "-");
+                let dbPost = null;
+                
+                try {
+                    dbPost = await dbService.createPost({
+                        ...data,
+                        slug: slugId,
+                        featuredImage: fileId,
+                        userId: userData?.$id || "user-1",
+                    });
+                } catch (err) {
+                    console.log("Appwrite create post failed, saving locally", err);
+                }
+
+                if (dbPost) {
+                    navigate(`/post/${dbPost.$id}`);
+                } else {
+                    const newPost = {
+                        $id: slugId,
+                        slug: slugId,
+                        title: data.title,
+                        content: data.content,
+                        featuredImage: fileId || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
+                        status: data.status,
+                        userId: userData?.$id || "demo-user",
+                        authorName: userData?.name || "Anonymous",
+                        readTime: "3 min read",
+                        createdAt: new Date().toISOString().split("T")[0]
+                    };
+                    saveLocalDemoPost(newPost);
+                    navigate(`/post/${slugId}`);
+                }
             }
+        } catch (err) {
+            setError(err.message || "An error occurred while saving the post.");
+        } finally {
+            setLoading(false);
         }
-    }
+    };
 
     const slugTransform = useCallback((value) => {
-        if(value){
+        if (value && typeof value === "string") {
             return value
-            .trim()
-            .toLowerCase()
-            .replace(/^[a-zA-Z\d\s]+/g, "-")
-            .replace(/\s/g, "-")
-        } else {
-            return ""
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-zA-Z0-9\s-]/g, "")
+                .replace(/\s+/g, "-");
         }
-    }, [])
-
-
+        return "";
+    }, []);
 
     useEffect(() => {
-        const subscription = watch((value, {name}) => {
-            if(name === "title"){
-                setValue("slug", slugTransform(value.title, {shouldValidate: true}))
+        const subscription = watch((value, { name }) => {
+            if (name === "title") {
+                setValue("slug", slugTransform(value.title), { shouldValidate: true });
             }
-        })
+        });
+        return () => subscription.unsubscribe();
+    }, [watch, slugTransform, setValue]);
 
-        return () => {
-            subscription.unsubscribe()
-        }
-    }, [watch, slugTransform, setValue])
-
-
-
-    return(
-        <>
-            <form onSubmit={handleSubmit(submit)} className="flex flex-wrap">
-            <div className="w-2/3 px-2">
+    return (
+        <form onSubmit={handleSubmit(submit)} className="flex flex-wrap -mx-3">
+            {error && (
+                <div className="w-full px-3 mb-6">
+                    <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-sm">
+                        {error}
+                    </div>
+                </div>
+            )}
+            
+            <div className="w-full lg:w-2/3 px-3 space-y-6">
                 <Input
-                    label="Title :"
-                    placeholder="Title"
-                    className="mb-4"
+                    label="Article Title :"
+                    placeholder="Enter article title"
                     {...register("title", { required: true })}
                 />
                 <Input
-                    label="Slug :"
-                    placeholder="Slug"
-                    className="mb-4"
+                    label="URL Slug :"
+                    placeholder="article-slug"
                     {...register("slug", { required: true })}
                     onInput={(e) => {
                         setValue("slug", slugTransform(e.currentTarget.value), { shouldValidate: true });
                     }}
                 />
-                <RTE label="Content :" name="content" control={control} defaultValue={getValues("content")} />
+                <RTE 
+                    label="Article Body Content :" 
+                    name="content" 
+                    control={control} 
+                    defaultValue={getValues("content")} 
+                />
             </div>
-            <div className="w-1/3 px-2">
-                <Input
-                    label="Featured Image :"
-                    type="file"
-                    className="mb-4"
-                    accept="image/png, image/jpg, image/jpeg, image/gif"
-                    {...register("image", { required: !post })}
-                />
-                {post && (
-                    <div className="w-full mb-4">
-                        <img
-                            src={appwriteService.getFilePreview(post.featuredImage)}
-                            alt={post.title}
-                            className="rounded-lg"
-                        />
-                    </div>
-                )}
-                <Select
-                    options={["active", "inactive"]}
-                    label="Status"
-                    className="mb-4"
-                    {...register("status", { required: true })}
-                />
-                <Button type="submit" bgColor={post ? "bg-green-500" : undefined} className="w-full">
-                    {post ? "Update" : "Submit"}
-                </Button>
+
+            <div className="w-full lg:w-1/3 px-3 mt-6 lg:mt-0 space-y-6">
+                <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-6">
+                    <Input
+                        label="Featured Cover Image :"
+                        type="file"
+                        accept="image/png, image/jpg, image/jpeg, image/gif, image/webp"
+                        {...register("image", { required: !post })}
+                    />
+                    
+                    {post && post.featuredImage && (
+                        <div className="w-full overflow-hidden rounded-xl border border-slate-800">
+                            <img
+                                src={storageService.getFilePreview(post.featuredImage)}
+                                alt={post.title}
+                                className="w-full h-40 object-cover"
+                            />
+                        </div>
+                    )}
+
+                    <SelectBtn
+                        options={["active", "inactive"]}
+                        label="Visibility Status :"
+                        {...register("status", { required: true })}
+                    />
+
+                    <Button 
+                        type="submit" 
+                        disabled={loading} 
+                        bgColor={post ? "bg-emerald-600 hover:bg-emerald-500" : "bg-indigo-600 hover:bg-indigo-500"} 
+                        className="w-full py-3"
+                    >
+                        {loading ? "Saving..." : post ? "Update Article" : "Publish Article"}
+                    </Button>
+                </div>
             </div>
         </form>
-        </>
-    )
+    );
 }
 
 export default PostForm;
